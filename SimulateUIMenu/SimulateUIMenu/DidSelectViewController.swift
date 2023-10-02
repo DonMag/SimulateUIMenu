@@ -152,19 +152,18 @@ class ViewUIMenu: UIView {
 	}
 	
 	private var inProcess: Bool = false
-//	override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-//		print(#function)
-//		if self.bounds.contains(point) {
-//			return super.hitTest(point, with: event)
-//		} else {
-//			// prevent this being called twice
-//			if !self.inProcess {
-//				self.inProcess = true
-//				self.didSelectOption?(-1)
-//			}
-//		}
-//		return self
-//	}
+	override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+		if self.bounds.contains(point) {
+			return super.hitTest(point, with: event)
+		} else {
+			// prevent this being called twice
+			if !self.inProcess {
+				self.inProcess = true
+				self.didSelectOption?(-1)
+			}
+		}
+		return self
+	}
 }
 
 class ViewDidSelectViewController: UIViewController, UICollectionViewDataSource, UICollectionViewDelegate {
@@ -215,7 +214,7 @@ class ViewDidSelectViewController: UIViewController, UICollectionViewDataSource,
 			//self.myData.shuffle()
 			self.theActiveData.shuffle()
 			self.collectionView.reloadData()
-			print("collection reloaded")
+			//print("collection reloaded")
 		})
 		
 	}
@@ -246,7 +245,6 @@ class ViewDidSelectViewController: UIViewController, UICollectionViewDataSource,
 		if let n = Int(thisObject.title) {
 			self.menuShouldZoom = n % 2 == 1
 		}
-		print("z:", self.menuShouldZoom)
 		
 		let menuView = ViewUIMenu()
 		menuView.title = "View Menu Title"
@@ -255,6 +253,11 @@ class ViewDidSelectViewController: UIViewController, UICollectionViewDataSource,
 		view.addSubview(menuView)
 		
 		var zPos: MenuZoomPosition = []
+		
+		var tr = CGAffineTransform(scaleX: 1.0, y: 1.0)
+		var pt: CGPoint = menuView.layer.position
+		var anchorPT: CGPoint = .init(x: 0.5, y: 0.5)
+		var posPT: CGPoint = .zero
 		
 		if menuShouldCenter {
 			NSLayoutConstraint.activate([
@@ -279,20 +282,26 @@ class ViewDidSelectViewController: UIViewController, UICollectionViewDataSource,
 				menuView.leadingAnchor.constraint(greaterThanOrEqualTo: g.leadingAnchor, constant: 8.0),
 				menuView.trailingAnchor.constraint(lessThanOrEqualTo: g.trailingAnchor, constant: -8.0),
 			])
+
 			var xc: NSLayoutConstraint!
-			if srcRect.maxX > view.frame.midX {
+
+			if srcRect.minX > view.frame.midX {
+				anchorPT.x = 1.0
 				zPos.insert(.trailing)
 				xc = menuView.trailingAnchor.constraint(equalTo: srcGuide.trailingAnchor, constant: 2.0)
 			} else {
+				anchorPT.x = 0.0
 				zPos.insert(.leading)
 				xc = menuView.leadingAnchor.constraint(equalTo: srcGuide.leadingAnchor, constant: -2.0)
 			}
 			xc.priority = .required - 1
 			xc.isActive = true
-			if srcRect.maxY > view.frame.midY {
+			if srcRect.minY > view.frame.midY {
+				anchorPT.y = 1.0
 				zPos.insert(.bottom)
 				menuView.bottomAnchor.constraint(equalTo: srcGuide.topAnchor, constant: 2.0).isActive = true
 			} else {
+				anchorPT.y = 0.0
 				zPos.insert(.top)
 				menuView.topAnchor.constraint(equalTo: srcGuide.bottomAnchor, constant: -2.0).isActive = true
 			}
@@ -302,35 +311,15 @@ class ViewDidSelectViewController: UIViewController, UICollectionViewDataSource,
 		self.view.setNeedsLayout()
 		self.view.layoutIfNeeded()
 		
-		var tr = CGAffineTransform(scaleX: 1.0, y: 1.0)
-		var pt: CGPoint = .zero
-		var anchorPT: CGPoint = .init(x: 0.5, y: 0.5)
-		var posPT: CGPoint = .zero
+		let w: CGFloat = menuView.frame.width * 0.5
+		let h: CGFloat = menuView.frame.height * 0.5
 		
+		pt = menuView.layer.position
+
 		if menuShouldZoom && !menuShouldCenter {
-			pt = menuView.layer.position
-			
-			let w: CGFloat = menuView.frame.width * 0.5
-			let h: CGFloat = menuView.frame.height * 0.5
-			
-			switch zPos {
-			case [.top, .trailing]:
-				posPT = .init(x: pt.x + w, y: pt.y - h)
-				anchorPT = .init(x: 1.0, y: 0.0)
-				()
-			case [.bottom, .leading]:
-				posPT = .init(x: pt.x - w, y: pt.y + h)
-				anchorPT = .init(x: 0.0, y: 1.0)
-				()
-			case [.bottom, .trailing]:
-				posPT = .init(x: pt.x + w, y: pt.y + h)
-				anchorPT = .init(x: 1.0, y: 1.0)
-				()
-			default:
-				posPT = .init(x: pt.x - w, y: pt.y - h)
-				anchorPT = .init(x: 0.0, y: 0.0)
-				()
-			}
+
+			posPT.x = anchorPT.x == 0.0 ? pt.x - w : pt.x + w
+			posPT.y = anchorPT.y == 0.0 ? pt.y - h : pt.y + h
 
 			menuView.layer.position = posPT
 			menuView.layer.anchorPoint = anchorPT
@@ -344,11 +333,8 @@ class ViewDidSelectViewController: UIViewController, UICollectionViewDataSource,
 			menuView.alpha = 1.0
 			menuView.layer.setAffineTransform(.identity)
 		}, completion: { _ in
-			if menuView.layer.anchorPoint != .init(x: 0.5, y: 0.5) {
-				menuView.layer.anchorPoint = .init(x: 0.5, y: 0.5)
-				menuView.layer.position = pt
-			}
-			()
+			menuView.layer.anchorPoint = .init(x: 0.5, y: 0.5)
+			menuView.layer.position = pt
 		})
 
 		menuView.didSelectOption = { [weak self] i in
@@ -375,7 +361,7 @@ class ViewDidSelectViewController: UIViewController, UICollectionViewDataSource,
 		// if selected option is -1
 		//	the user tapped outside the menu to dismiss it
 		if forSelectedOption == -1 {
-			print("User cancelled menu...")
+			print("User cancelled menu...", withObject)
 		} else {
 			print("View Selected option:", forSelectedOption)
 			print("Data Object:", withObject)
