@@ -13,22 +13,6 @@ struct SomeDataObject {
 	var bgColor: UIColor = .lightGray
 }
 
-struct MenuZoomPosition: OptionSet {
-	
-	// MARK: - Properties
-	
-	let rawValue: Int
-	
-	// MARK: - Options
-	
-	static let top		= MenuZoomPosition(rawValue: 1 << 0)
-	static let bottom	= MenuZoomPosition(rawValue: 1 << 1)
-	static let leading	= MenuZoomPosition(rawValue: 1 << 2)
-	static let trailing	= MenuZoomPosition(rawValue: 1 << 3)
-	
-}
-
-
 class ScratchVC: UIViewController {
 	
 	
@@ -252,23 +236,25 @@ class ViewDidSelectViewController: UIViewController, UICollectionViewDataSource,
 		menuView.translatesAutoresizingMaskIntoConstraints = false
 		view.addSubview(menuView)
 		
-		var zPos: MenuZoomPosition = []
-		
 		var tr = CGAffineTransform(scaleX: 1.0, y: 1.0)
 		var pt: CGPoint = menuView.layer.position
 		var anchorPT: CGPoint = .init(x: 0.5, y: 0.5)
 		var posPT: CGPoint = .zero
 		
 		if menuShouldCenter {
+			// if we're centering the menu view,
+			//	we only need to set center constraints
 			NSLayoutConstraint.activate([
 				menuView.centerXAnchor.constraint(equalTo: collectionView.centerXAnchor),
 				menuView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
 			])
 		} else {
+			// we're going to position the menu view
+			//	relative to the selected collection view item
 			let srcRect: CGRect = collectionView.convert(thisCell.frame, to: self.view)
-			if let lg = self.view.layoutGuides.first(where: { $0.identifier == "srcGuide" } ) {
-				self.view.removeLayoutGuide(lg)
-			}
+			
+			// add a layout guide matching the selected cell frame
+			//	so we can constrain the menu view to it
 			let srcGuide = UILayoutGuide()
 			srcGuide.identifier = "srcGuide"
 			self.view.addLayoutGuide(srcGuide)
@@ -279,6 +265,7 @@ class ViewDidSelectViewController: UIViewController, UICollectionViewDataSource,
 				srcGuide.heightAnchor.constraint(equalToConstant: srcRect.height),
 				srcGuide.widthAnchor.constraint(equalToConstant: srcRect.width),
 
+				// we want at least 8-points spacing on leading/trailing
 				menuView.leadingAnchor.constraint(greaterThanOrEqualTo: g.leadingAnchor, constant: 8.0),
 				menuView.trailingAnchor.constraint(lessThanOrEqualTo: g.trailingAnchor, constant: -8.0),
 			])
@@ -287,35 +274,41 @@ class ViewDidSelectViewController: UIViewController, UICollectionViewDataSource,
 
 			if srcRect.minX > view.frame.midX {
 				anchorPT.x = 1.0
-				zPos.insert(.trailing)
 				xc = menuView.trailingAnchor.constraint(equalTo: srcGuide.trailingAnchor, constant: 2.0)
 			} else {
 				anchorPT.x = 0.0
-				zPos.insert(.leading)
 				xc = menuView.leadingAnchor.constraint(equalTo: srcGuide.leadingAnchor, constant: -2.0)
 			}
 			xc.priority = .required - 1
 			xc.isActive = true
 			if srcRect.minY > view.frame.midY {
 				anchorPT.y = 1.0
-				zPos.insert(.bottom)
 				menuView.bottomAnchor.constraint(equalTo: srcGuide.topAnchor, constant: 2.0).isActive = true
 			} else {
 				anchorPT.y = 0.0
-				zPos.insert(.top)
 				menuView.topAnchor.constraint(equalTo: srcGuide.bottomAnchor, constant: -2.0).isActive = true
 			}
 		}
 		
+		// start with alpha = 0
 		menuView.alpha = 0.0
+		
+		// we need to force a layout pass
+		//	so we know the menu view's frame
 		self.view.setNeedsLayout()
 		self.view.layoutIfNeeded()
-		
+
 		let w: CGFloat = menuView.frame.width * 0.5
 		let h: CGFloat = menuView.frame.height * 0.5
-		
+
+		// get layer's original position
 		pt = menuView.layer.position
 
+		// if we're
+		//	NOT centering the menu
+		//	AND
+		//	we ARE Zooing the menu
+		// offset the layer position and change the layer anchorPoint
 		if menuShouldZoom && !menuShouldCenter {
 
 			posPT.x = anchorPT.x == 0.0 ? pt.x - w : pt.x + w
@@ -327,8 +320,13 @@ class ViewDidSelectViewController: UIViewController, UICollectionViewDataSource,
 
 		}
 
+		// apply the transform
+		//	if we're NOT Zooming,
+		//	it will be 1.0, 1.0 and will have no effect
 		menuView.layer.setAffineTransform(tr)
 
+		// animate the menu appearance
+		//	and reset the layer position and anchorPoint
 		UIView.animate(withDuration: 0.3, animations: {
 			menuView.alpha = 1.0
 			menuView.layer.setAffineTransform(.identity)
@@ -337,6 +335,7 @@ class ViewDidSelectViewController: UIViewController, UICollectionViewDataSource,
 			menuView.layer.position = pt
 		})
 
+		// option button was selected, or, tapped outside the menu
 		menuView.didSelectOption = { [weak self] i in
 			guard let self = self else { return }
 			var tr = CGAffineTransform(scaleX: 1.0, y: 1.0)
@@ -350,6 +349,10 @@ class ViewDidSelectViewController: UIViewController, UICollectionViewDataSource,
 				menuView.alpha = 0.0
 			}, completion: { _ in
 				menuView.removeFromSuperview()
+				// remove the layout guide
+				if let lg = self.view.layoutGuides.first(where: { $0.identifier == "srcGuide" } ) {
+					self.view.removeLayoutGuide(lg)
+				}
 				self.doSomething(forSelectedOption: i, withObject: thisObject)
 			})
 		}
