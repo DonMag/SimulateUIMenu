@@ -9,9 +9,35 @@ import UIKit
 
 class ViewController: UIViewController {
 
+	struct ZoomPosition: OptionSet {
+		
+		// MARK: - Properties
+		
+		let rawValue: Int
+		
+		// MARK: - Options
+		
+		static let top		= ZoomPosition(rawValue: 1 << 0)
+		static let bottom	= ZoomPosition(rawValue: 1 << 1)
+		static let leading	= ZoomPosition(rawValue: 1 << 2)
+		static let trailing	= ZoomPosition(rawValue: 1 << 3)
+		
+	}
+	
+
 	override func viewDidLoad() {
 		super.viewDidLoad()
 		// Do any additional setup after loading the view.
+
+		var zPos: ZoomPosition = []
+
+		zPos.insert(.top)
+		zPos.insert(.leading)
+		
+		print(zPos)
+		
+		print(zPos == [.top, .leading])
+		print(zPos == [.top, .trailing])
 	}
 
 
