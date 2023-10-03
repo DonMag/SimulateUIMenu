@@ -45,7 +45,7 @@ class ViewUIMenu: UIView {
 				let v = UIView()
 				v.backgroundColor = .lightGray
 				stackView.addArrangedSubview(v)
-				v.heightAnchor.constraint(equalToConstant: UIScreen.main.scale == 2 ? 0.5 : 1.0 / 3.0).isActive = true
+				v.heightAnchor.constraint(equalToConstant: 1.0 / UIScreen.main.scale).isActive = true
 				
 				let handler: UIButton.ConfigurationUpdateHandler = { button in
 					var cfg = button.configuration
